@@ -5,7 +5,7 @@ namespace app\controllers;
 use app\models\Tasks;
 use app\models\TasksForm;
 use app\models\TasksSearch;
-use app\models\UploadFilesForm;
+use Imagine\Gd\Imagine;
 use Yii;
 use yii\base\BaseObject;
 use yii\web\Controller;
@@ -13,6 +13,8 @@ use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\web\TooManyRequestsHttpException;
 use yii\web\UploadedFile;
+use yii\imagine\Image;
+
 
 /**
  * TasksController implements the CRUD actions for Tasks model.
@@ -72,34 +74,30 @@ class TasksController extends Controller
      * If creation is successful, the browser will be redirected to the 'view' page.
      * @return mixed
      */
+
     public function actionCreate()
     {
         $model = new Tasks();
-//        $uploadModel = new UploadFilesForm();
 
-        if ($this->request->isPost) {
-            if ($model->load($this->request->post()) && $model->save()) {
-                $model->user_id = \Yii::$app->user->identity->getId();
-                $model->save();
+        if ($model->load($this->request->post()) && $model->save()) {
+            $model->user_id = \Yii::$app->user->identity->getId();
+            $file = UploadedFile::getInstance($model, 'file');
+            if ($file && $file->tempName) {
+                $model->file = $file;
+                if ($model->validate(['file'])) {
+
+//                    Yii::setAlias("@images", "@app/web/images/task");
+                    $dir = Yii::getAlias("@app/web/images/task/");
+                    $fileName = $model->file->baseName . '.' . $model->file->extension;
+                    $model->file->saveAs($dir . $fileName);
+                    $model->file = $fileName; // без этого ошибка
+                    $model->image = '/' . $dir . $fileName;
+                }
+            }
+            if ($model->save()) {
                 return $this->redirect(['view', 'id' => $model->id]);
             }
-        } else {
-            $model->loadDefaultValues();
         }
-
-//        if ($this->request->isPost) {
-//            if ($model->load($this->request->post()) && $model->save()) {
-//                $model->user_id = \Yii::$app->user->identity->getId();
-//                $model->file = UploadedFile::getInstance($model, 'file');
-//                $model->file->saveAs("img/{$model->file->baseName}.{$model->file->extension}");
-//                $model->save(false);
-//
-//                $model->save();
-//                return $this->redirect(['view', 'id' => $model->id]);
-//            }
-//        } else {
-//            $model->loadDefaultValues();
-//        }
 
         return $this->render('create', [
             'model' => $model,
@@ -115,28 +113,43 @@ class TasksController extends Controller
      */
     public function actionUpdate($id)
     {
-//        $model = $this->findModel($id);
-//
-//        if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
-//            return $this->redirect(['view', 'id' => $model->id]);
-//        }
-
         $model = $this->findModel($id);
+        $current_image = $model->image;
 
-        if ($model->load(\Yii::$app->request->post()) && $model->validate()) {
-            if ($file = UploadedFile::getInstance($model, 'file')) {
-                $model->file = $model->uploadFile($file, $model->file);
+        if ($model->load(Yii::$app->request->post())) {
+            $model->user_id = \Yii::$app->user->identity->getId();
+            $file = UploadedFile::getInstance($model, 'file');
+            if ($file && $file->tempName) {
+                $model->file = $file;
+                if ($model->validate(['file'])) {
+
+                    //Если отмечен чекбокс «удалить файл»
+                    if($model->del_img)
+                    {
+                        if(file_exists(Yii::getAlias('@webroot'.$current_image)))
+                        {
+                            //удаляем файл
+                            unlink(Yii::getAlias('@webroot'.$current_image));
+                            $model->image = '';
+                        }
+                    }
+
+                    $dir = Yii::getAlias("@app/web/images/task/");
+                    $fileName = $model->file->baseName . '.' . $model->file->extension;
+                    $model->file->saveAs($dir . $fileName);
+                    $model->file = $fileName; // без этого ошибка
+                    $model->image = '/'.$dir . $fileName;
+                }
             }
-
-            if($model->save()) {
-                Yii::$app->session->setFlash('success', 'Все прошло удачно');
+            if ($model->save()) {
                 return $this->redirect(['view', 'id' => $model->id]);
             }
-        }
 
-        return $this->render('update', [
-            'model' => $model,
-        ]);
+        } else {
+            return $this->render('update', [
+                'model' => $model,
+            ]);
+        }
     }
 
     /**

@@ -5,10 +5,10 @@ namespace app\models;
 use app\models\User;
 use phpDocumentor\Reflection\Types\Parent_;
 use Yii;
-use app\models\TasksForm;
 use yii\behaviors\BlameableBehavior;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
+use yii\web\UploadedFile;
 
 /**
  * This is the model class for table "tasks".
@@ -24,6 +24,10 @@ use yii\db\ActiveRecord;
  */
 class Tasks extends ActiveRecord
 {
+
+    public $image;
+    public $del_img;
+
     /**
      * {@inheritdoc}
      */
@@ -60,7 +64,9 @@ class Tasks extends ActiveRecord
             [['user_id', 'created_at', 'updated_at'], 'integer'],
             [['title'], 'required'],
             [['title'], 'string'],
-            [['file'], 'string', 'max' => 255],
+            [['file'], 'file', 'extensions' => 'png, jpg'],
+//            [['image'], 'file', 'extensions' => 'png, jpg'],
+            [['del_img'], 'boolean'],
             [['user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['user_id' => 'id']],
         ];
     }
